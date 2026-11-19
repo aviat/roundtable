@@ -4,7 +4,7 @@ A shared countdown timer and question board for meetings. Live at
 **https://aviat.github.io/roundtable/**.
 
 Start a meeting, share the link, and everyone with it sees the same timer and
-questions: ask, upvote, reply, and mark questions answered. Press `?` in the app
+questions: ask, upvote, reply, and mark questions as responded or reopen them. Press `?` in the app
 for keyboard shortcuts.
 
 ## How it works

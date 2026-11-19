@@ -70,7 +70,7 @@
   @media (hover: none) { .qfooter .hint { display:none; } }   /* no keyboard hints on touch devices */
   .qfooter { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
   #qList { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
-  .q { position:relative; display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:start; background:var(--card);
+  .q { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr); gap:12px; align-items:start; background:var(--card);
        border:1px solid var(--line); border-radius:12px; padding:12px; }
   .q.answered .qtext { color:var(--muted); }
   .q.answered .vote { opacity:.6; }
@@ -95,10 +95,6 @@
   .qtext { font-size:18px; white-space:pre-wrap; overflow-wrap:anywhere; }
   .qmeta { color:var(--muted); font-size:13px; margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .qmeta .badge { color:var(--ok); }
-  .answer { width:36px; height:36px; min-width:0; padding:0; border-radius:50%; font-size:18px; line-height:1;
-            display:grid; place-items:center; color:var(--muted); border-color:var(--line); }
-  .answer:hover, .answer:focus-visible { color:var(--ok); border-color:var(--ok); }
-  .answer.on { background:var(--ok); border-color:var(--ok); color:#fff; }
   .qadmin button { font-size:13px; padding:2px 10px; min-width:0; border-radius:999px; }
   body.controls-hidden .qadmin { display:none; }
   .replies { list-style:none; margin:10px 0 0; padding:0 0 0 12px; border-left:2px solid var(--line);
@@ -219,7 +215,7 @@
         <tr><td><kbd>Space</kbd> <kbd>Enter</kbd> <kbd>u</kbd> <kbd>+</kbd></td><td>Toggle your upvote on the selected question</td></tr>
         <tr><td><kbd>c</kbd> <kbd>i</kbd> <kbd>/</kbd></td><td>Write a question</td></tr>
         <tr><td><kbd>r</kbd></td><td>Reply to selected question</td></tr>
-        <tr><td><kbd>a</kbd></td><td>Mark selected answered / reopen</td></tr>
+        <tr><td><kbd>a</kbd></td><td>Mark selected question as responded / reopen</td></tr>
         <tr><td><kbd>#</kbd></td><td>Delete selected</td></tr>
         <tr><td><kbd>y</kbd></td><td>Copy all questions as Markdown (yank)</td></tr>
         <tr><td><kbd>l</kbd></td><td>Copy the meeting link</td></tr>
@@ -641,7 +637,7 @@
       const section = (title, list) => list.length ? `### ${title}\n\n${list.map(item).join('\n')}\n` : '';
       return [`## Roundtable questions (${date})\n`,
               section('Open', qs.filter(q => !q.answered)),
-              section('Answered', qs.filter(q => q.answered))].filter(Boolean).join('\n');
+              section('Responded', qs.filter(q => q.answered))].filter(Boolean).join('\n');
     }
 
     async function copyQuestions() {
@@ -661,7 +657,7 @@
       order = qs.map(q => q.id);
       if (!order.includes(selectedId)) selectedId = null;
       const open = qs.filter(q => !q.answered).length;
-      $('qCount').textContent = qs.length ? `${open} open · ${qs.length - open} answered` : '';
+      $('qCount').textContent = qs.length ? `${open} open · ${qs.length - open} responded` : '';
 
       const list = $('qList');
       // FLIP: remember where each card was, so moved cards can glide to their new spot.
@@ -706,7 +702,7 @@
         if (q.answered) {
           const badge = document.createElement('span');
           badge.className = 'badge';
-          badge.textContent = '✓ Answered';
+          badge.textContent = '✓ Responded';
           meta.append(badge);
         }
         const admin = document.createElement('span');
@@ -720,7 +716,13 @@
         replyBtn.className = 'link-btn';
         replyBtn.textContent = 'Reply';
         replyBtn.onclick = () => openReply(q.id);
-        meta.append(replyBtn, admin);
+        const responseBtn = document.createElement('button');
+        responseBtn.type = 'button';
+        responseBtn.className = 'link-btn';
+        responseBtn.textContent = q.answered ? 'Reopen' : 'Mark as responded';
+        responseBtn.title = responseBtn.textContent + ' (a)';
+        responseBtn.onclick = () => editQuestion(q.id, { answered: !q.answered });
+        meta.append(replyBtn, responseBtn, admin);
         body.append(text, meta);
 
         const reps = repliesOf(q.id);
@@ -764,15 +766,7 @@
           body.append(form);
         }
 
-        const ans = document.createElement('button');
-        ans.className = 'answer' + (q.answered ? ' on' : '');
-        ans.textContent = '✓';
-        ans.title = q.answered ? 'Answered: click to reopen (a)' : 'Mark answered (a)';
-        ans.setAttribute('aria-pressed', String(q.answered));
-        ans.setAttribute('aria-label', q.answered ? 'Reopen question' : 'Mark question answered');
-        ans.onclick = () => editQuestion(q.id, { answered: !q.answered });
-
-        li.append(vote, body, ans);
+        li.append(vote, body);
         list.append(li);
       }
 
@@ -802,7 +796,7 @@
                      { duration: flipped ? 550 : 350, easing: 'cubic-bezier(.2,.8,.2,1)' });
         }
         if (flipped && nowAnswered) {
-          el.querySelector('.answer')?.animate([{ transform: 'scale(.6)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }],
+          el.querySelector('.badge')?.animate([{ transform: 'scale(.6)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }],
                                                { duration: 350, easing: 'ease-out' });
           el.animate([{ boxShadow: '0 0 0 3px color-mix(in srgb, var(--ok) 60%, transparent)' }, { boxShadow: '0 0 0 0 transparent' }],
                      { duration: 900, easing: 'ease-out' });
