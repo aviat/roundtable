@@ -63,12 +63,9 @@
   .questions h2 { font-size:20px; margin:0 0 12px; display:flex; justify-content:space-between; align-items:baseline; }
   .questions h2 small { color:var(--muted); font-weight:400; font-size:14px; }
   .small-btn { font-size:13px; padding:3px 12px; min-width:0; border-radius:999px; }
-  #askForm { display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; margin-bottom:16px; }
-  #askForm textarea { grid-column: 1 / -1; resize:vertical; min-height:56px; }
+  #askForm { display:flex; flex-direction:column; align-items:flex-end; gap:8px; margin-bottom:16px; }
+  #askForm textarea { width:100%; resize:vertical; min-height:56px; }
   #askForm button[type=submit] { font-size:16px; padding:10px 20px; min-width:0; }
-  .asker { display:flex; align-items:center; min-width:0; font-size:15px; color:var(--muted); }
-  .asker strong { color:var(--fg); font-weight:600; overflow-wrap:anywhere; }
-  .asker input { flex:1; min-width:0; font-size:15px; }
   .link-btn { border:0; padding:0; min-width:0; border-radius:0; font-size:inherit; background:none; color:var(--accent); text-decoration:underline; }
   @media (hover: none) { .qfooter .hint { display:none; } }   /* no keyboard hints on touch devices */
   .qfooter { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-top:12px; }
@@ -115,11 +112,22 @@
   .empty { color:var(--muted); text-align:center; padding:24px 0; }
 
   /* Connection pill + cog */
-  #conn { position:fixed; left:16px; top:14px; font-size:13px; color:var(--muted); display:flex; align-items:center; gap:6px; }
-  #conn i { width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block; }
-  #conn.on i { background:var(--ok); }
-  #conn.off i { background:var(--done); }
-  #copyLink { font-size:13px; padding:3px 12px; min-width:0; border-radius:999px; margin-left:6px; }
+  /* Presence: avatar stack + invite, top left */
+  #conn { position:fixed; left:16px; top:12px; font-size:13px; color:var(--muted); display:flex; align-items:center; gap:10px; z-index:5; }
+  #people { display:flex; align-items:center; }
+  .avatar { width:28px; height:28px; min-width:0; padding:0; border-radius:50%; display:grid; place-items:center;
+            font-size:11px; font-weight:600; letter-spacing:.02em; color:#fff; background:var(--muted);
+            border:2px solid var(--bg); margin-left:-6px; cursor:default; user-select:none; transition:filter .3s, opacity .3s; }
+  .avatar:first-child { margin-left:0; }
+  .avatar.me { cursor:pointer; box-shadow:0 0 0 2px var(--accent); }
+  .avatar.me.unnamed { background:transparent; color:var(--muted); border:1px dashed var(--muted); box-shadow:none; }
+  .avatar.more { background:color-mix(in srgb, var(--muted) 25%, var(--bg)); color:var(--fg); font-weight:500; }
+  #conn.off .avatar, #conn.connecting .avatar:not(.me) { filter:grayscale(1); opacity:.6; }
+  #qName { font-size:13px; padding:4px 10px; width:150px; border-radius:999px; }
+  #conn .link-btn { color:var(--muted); text-decoration:none; }
+  #conn .link-btn:hover, #conn .link-btn:focus-visible { color:var(--fg); }
+  #connText { color:var(--done); }
+  #connText:empty { display:none; }
   #panelToggle { position:fixed; right:16px; bottom:16px; width:48px; height:48px; min-width:0; padding:0;
                  display:grid; place-items:center; border-radius:50%;
                  border:1px solid color-mix(in srgb, var(--muted) 50%, transparent);
@@ -147,8 +155,13 @@
 </section>
 
 <div id="app" hidden>
-  <div id="conn"><i></i><span id="connText">Connecting…</span>
-    <button type="button" id="copyLink" title="Copy the meeting link (l)">🔗 Copy link</button></div>
+  <div id="conn" class="connecting" role="group" aria-label="People in this meeting">
+    <div id="people"></div>
+    <input id="qName" hidden maxlength="60" placeholder="Your name" aria-label="Your name" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore>
+    <button type="button" id="setName" class="link-btn" hidden>Set your name</button>
+    <span id="connText" aria-live="polite"></span>
+    <button type="button" id="copyLink" class="link-btn" title="Copy the meeting link (l)">⧉ Invite others</button>
+  </div>
 
   <div class="layout">
     <section class="timer">
@@ -186,10 +199,6 @@
       <h2>Questions <small id="qCount"></small></h2>
       <form id="askForm">
         <textarea id="qText" autocomplete="off" maxlength="500" placeholder="Ask a question… (press c)" aria-label="Your question" required></textarea>
-        <div class="asker">
-          <span id="askerView" hidden>Asking as <strong id="askerName"></strong> · <button type="button" id="changeName" class="link-btn">change</button></span>
-          <input id="qName" maxlength="60" placeholder="Your name" aria-label="Your name" autocomplete="name" required pattern=".*\S.*" title="Enter your name">
-        </div>
         <button type="submit" class="primary">Ask</button>
       </form>
       <ul id="qList"></ul>
@@ -209,6 +218,7 @@
         <tr><td><kbd>g</kbd><kbd>g</kbd> · <kbd>G</kbd></td><td>First / last question</td></tr>
         <tr><td><kbd>Space</kbd> <kbd>Enter</kbd> <kbd>u</kbd> <kbd>+</kbd></td><td>Toggle your upvote on the selected question</td></tr>
         <tr><td><kbd>c</kbd> <kbd>i</kbd> <kbd>/</kbd></td><td>Write a question</td></tr>
+        <tr><td><kbd>r</kbd></td><td>Reply to selected question</td></tr>
         <tr><td><kbd>a</kbd></td><td>Mark selected answered / reopen</td></tr>
         <tr><td><kbd>#</kbd></td><td>Delete selected</td></tr>
         <tr><td><kbd>y</kbd></td><td>Copy all questions as Markdown (yank)</td></tr>
@@ -223,7 +233,7 @@
       <h4>Timer</h4>
       <table>
         <tr><td><kbd>t</kbd> · <kbd>Space</kbd></td><td>Start / pause (Space only when no question is selected)</td></tr>
-        <tr><td><kbd>r</kbd></td><td>Reset</td></tr>
+        <tr><td><kbd>r</kbd></td><td>Reset (when no question is selected)</td></tr>
         <tr><td><kbd>h</kbd></td><td>Show / hide controls</td></tr>
         <tr><td><kbd>?</kbd></td><td>This help</td></tr>
       </table>
@@ -463,29 +473,92 @@
     });
 
     // ----- Questions -----
-    $('qName').value = store.get('rt-name') || '';
-    $('qName').oninput = () => store.set('rt-name', $('qName').value.trim());   // remembered in this browser
-    // Once a name is set, collapse the field to "Asking as <name> · change".
-    function showAsker(editing) {
-      const name = $('qName').value.trim(), compact = !editing && !!name;
-      $('askerView').hidden = !compact;
-      $('qName').hidden = compact;
-      $('askerName').textContent = name;
+    // ----- Name + presence (top-left avatar stack) -----
+    let myName = (store.get('rt-name') || '').trim().slice(0, 60);   // remembered in this browser
+    const peerNames = new Map();     // peerId -> name ('' until their hello arrives, or an older client)
+    let online = null;               // null = connecting, true = room joined, false = sync unavailable
+    let sendHello = null;            // set once the P2P room is up
+    let returnFocus = null;          // where to go back to after naming yourself
+    let afterName = null;            // the post (question/reply) waiting for a name
+
+    const initials = n => {
+      const w = n.trim().split(/\s+/).filter(Boolean);
+      return !w.length ? '?' : (w.length > 1 ? [...w[0]][0] + [...w[1]][0] : [...w[0]].slice(0, 2).join('')).toUpperCase();
+    };
+    const hue = n => { let h = 0; for (const c of n) h = (h * 31 + c.codePointAt(0)) % 360; return h; };
+    function avatar(name, mine) {
+      const el = document.createElement(mine ? 'button' : 'span');
+      el.className = 'avatar' + (mine ? ' me' : '') + (mine && !name ? ' unnamed' : '');
+      el.textContent = initials(name);
+      if (name) el.style.background = `hsl(${hue(name)} 45% 45%)`;
+      if (mine) {
+        el.type = 'button';
+        el.title = name ? `${name} (you): click to rename` : 'Set your name';
+        el.setAttribute('aria-label', name ? `You, ${name}. Rename` : 'Set your name');
+        el.onclick = () => editName(true);
+      } else {
+        el.title = name || 'Someone (older version of the app)';
+        el.setAttribute('role', 'img');
+        el.setAttribute('aria-label', el.title);
+      }
+      return el;
     }
-    $('changeName').onclick = () => { showAsker(true); $('qName').focus(); $('qName').select(); };
+    function renderPeople() {
+      const editing = !$('qName').hidden, others = [...peerNames.values()], MAX = 4;
+      const box = $('people');
+      box.replaceChildren();
+      if (!editing) box.append(avatar(myName, true));
+      for (const n of others.slice(0, MAX)) box.append(avatar(n, false));
+      if (others.length > MAX) {
+        const more = document.createElement('span');
+        more.className = 'avatar more';
+        more.textContent = '+' + (others.length - MAX);
+        more.title = others.slice(MAX).map(n => n || 'Someone').join(', ');
+        box.append(more);
+      }
+      $('setName').hidden = editing || !!myName;
+      $('conn').className = online === false ? 'off' : online ? '' : 'connecting';
+      $('conn').title = online === false ? 'Offline: not syncing'
+                      : online ? (others.length ? `${others.length + 1} people here` : 'Only you so far') : 'Connecting…';
+      $('connText').textContent = online === false ? 'offline' : '';
+      if (!copyLabelBusy) $('copyLink').textContent = others.length ? '⧉ Invite' : '⧉ Invite others';
+    }
+    let copyLabelBusy = false;
+
+    function editName(on) {
+      const input = $('qName');
+      if (on) {
+        if (!input.hidden) return;
+        if (!returnFocus) returnFocus = document.activeElement?.closest?.('textarea') || null;
+        input.value = myName;
+        input.hidden = false;
+        renderPeople();
+        input.focus(); input.select();
+      } else {
+        if (input.hidden) return;
+        const name = input.value.trim().slice(0, 60);
+        input.hidden = true;
+        if (name && name !== myName) { myName = name; store.set('rt-name', name); sendHello?.(); }
+        renderPeople();
+        const back = returnFocus, then = afterName;
+        returnFocus = afterName = null;
+        if (myName && back?.isConnected) back.focus();
+        if (myName && then) then();
+      }
+    }
+    $('setName').onclick = () => editName(true);
     $('qName').addEventListener('keydown', e => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      if ($('qName').value.trim()) { showAsker(false); $('qText').focus(); }
+      if (e.key === 'Enter') { e.preventDefault(); editName(false); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); afterName = null; $('qName').value = myName; editName(false); }
     });
-    $('qName').addEventListener('blur', () => { if ($('qName').value.trim()) showAsker(false); });
-    showAsker(false);
+    $('qName').addEventListener('blur', () => editName(false));
+    renderPeople();
 
     $('askForm').onsubmit = e => {
       e.preventDefault();
       const text = $('qText').value.trim().slice(0, 500);
       if (!text) return;
-      const author = requireName();
+      const author = requireName(() => $('askForm').requestSubmit());
       if (!author) return;
       if (Object.keys(state.questions).length >= MAX_QUESTIONS) return;
       const id = randomId(9), now = Date.now();
@@ -511,10 +584,13 @@
     }
 
     // Name is required to post; returns it, or sends the user to the name field.
-    function requireName() {
-      const author = $('qName').value.trim();
-      if (!author) { showAsker(true); $('qName').focus(); $('qName').reportValidity(); }
-      return author.slice(0, 60);
+    function requireName(retry) {
+      if (!myName) {
+        returnFocus = document.activeElement?.closest?.('textarea') || null;
+        afterName = retry;
+        editName(true);
+      }
+      return myName;
     }
     let replyFor = null, replyDraft = '';   // the one open reply box (local only)
     function openReply(qid) { replyFor = qid; replyDraft = ''; renderQuestions(); document.querySelector('.replyForm textarea')?.focus(); }
@@ -522,7 +598,7 @@
     function sendReply() {
       const text = replyDraft.trim().slice(0, 500);
       if (!text || !state.questions[replyFor]) return;
-      const author = requireName();
+      const author = requireName(sendReply);
       if (!author) return;
       if (Object.keys(state.replies).length >= MAX_REPLIES) return;
       const id = randomId(9), now = Date.now();
@@ -794,12 +870,15 @@
           break;
         }
         case 'c': case 'i': case '/':
-          ($('qName').value.trim() ? $('qText') : $('qName')).focus();
+          if (myName) $('qText').focus(); else { returnFocus = $('qText'); editName(true); }
           break;
         case 'y': copyQuestions(); break;
         case 'l': copyLink(); break;
         case 't': $('toggle').click(); break;
-        case 'r': $('reset').click(); break;
+        case 'r':
+          if (selectedId) openReply(selectedId);
+          else $('reset').click();
+          break;
         case 'h': togglePanel(); break;
         case '?': $('help').hidden = !$('help').hidden; break;
         default: return;
@@ -812,8 +891,9 @@
       const btn = $('copyLink');
       try { await navigator.clipboard.writeText(location.href); btn.textContent = 'Copied ✓'; }
       catch { btn.textContent = 'Copy failed: use the address bar'; }
+      copyLabelBusy = true;
       clearTimeout(copyLink.t);
-      copyLink.t = setTimeout(() => { btn.textContent = '🔗 Copy link'; }, 2000);
+      copyLink.t = setTimeout(() => { copyLabelBusy = false; renderPeople(); }, 2000);
     }
     $('copyLink').onclick = () => { copyLink(); $('copyLink').blur(); };
     $('leave').onclick = () => { location.hash = ''; };
@@ -841,7 +921,6 @@
     window.addEventListener('pageshow', unfocusFields);
 
     // ----- P2P -----
-    function setConn(cls, text) { $('conn').className = cls; $('connText').textContent = text; }
     (async () => {
       try {
         const { joinRoom } = await import(TRYSTERO_URL);
@@ -850,9 +929,20 @@
         });
         const action = room.makeAction('state');
         sendState = (s, target) => action.send(s, target ? { target } : undefined).catch(() => {});
+        // Presence: each browser tells the others its display name.
+        const hello = room.makeAction('hello');
+        sendHello = target => hello.send({ name: myName }, target ? { target } : undefined).catch(() => {});
+        hello.onMessage = (data, { peerId }) => {
+          if (typeof data?.name !== 'string') return;   // may arrive just before onPeerJoin
+          peerNames.set(peerId, data.name.trim().slice(0, 60));
+          renderPeople();
+        };
         const updatePeers = () => {
-          const n = Object.keys(room.getPeers()).length;
-          setConn(n ? 'on' : '', n ? `Live · ${n + 1} people` : 'Waiting for others…');
+          const ids = Object.keys(room.getPeers());
+          for (const id of [...peerNames.keys()]) if (!ids.includes(id)) peerNames.delete(id);
+          for (const id of ids) if (!peerNames.has(id)) peerNames.set(id, '');
+          online = true;
+          renderPeople();
         };
         action.onMessage = data => {
           const c = merge(state, data);
@@ -860,12 +950,13 @@
           if (c.timer) { fillForm(); renderTimer(); }
           if (c.questions) renderQuestions();
         };
-        room.onPeerJoin = id => { sendState(state, id); updatePeers(); };
+        room.onPeerJoin = id => { updatePeers(); sendState(state, id); sendHello(id); };
         room.onPeerLeave = updatePeers;
         updatePeers();
       } catch (err) {
         console.error('[roundtable] sync unavailable', err);
-        setConn('off', 'Offline: not syncing');
+        online = false;
+        renderPeople();
       }
     })();
   }
